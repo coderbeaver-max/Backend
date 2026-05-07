@@ -2,9 +2,24 @@ from fastapi import FastAPI, Response, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import requests
-import json
+
+import google.generativeai as genai
+from dotenv import load_dotenv
+
+import os
 import time
+
+# =========================
+# LOAD ENV
+# =========================
+load_dotenv()
+
+# =========================
+# GEMINI CONFIG
+# =========================
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+genai.configure(api_key=GEMINI_API_KEY)
 
 # =========================
 # APP INIT
@@ -28,21 +43,12 @@ app.add_middleware(
 )
 
 # =========================
-# xAI CONFIG
-# =========================
-import os
-
-XAI_API_KEY = os.getenv("XAI_API_KEY")
-
-XAI_URL = "https://api.x.ai/v1/responses"
-
-# =========================
 # REQUEST MODEL
 # =========================
 class Model(BaseModel):
     user_id: str
     question: str
-    model: str = "grok-4.20-reasoning"
+    model: str = "gemini-2.5-flash"
 
 # =========================
 # HEALTH CHECK
@@ -74,38 +80,19 @@ def ask_question(model: Model):
 
     try:
 
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {XAI_API_KEY}"
-        }
+        # create model
+        ai_model = genai.GenerativeModel(model.model)
 
-        payload = {
-            "model": model.model,
-            "input": model.question
-        }
-
-        response = requests.post(
-            XAI_URL,
-            headers=headers,
-            json=payload,
-            timeout=120
+        # generate response
+        response = ai_model.generate_content(
+            model.question
         )
-
-        # if API returns error
-        if response.status_code != 200:
-            return {
-                "status": "error",
-                "code": response.status_code,
-                "details": response.text
-            }
-
-        data = response.json()
 
         return {
             "status": "success",
             "user_id": model.user_id,
             "question": model.question,
-            "response": data
+            "response": response.text
         }
 
     except Exception as e:
@@ -125,36 +112,19 @@ def stream_answer(model: Model):
 
         try:
 
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {XAI_API_KEY}"
-            }
+            ai_model = genai.GenerativeModel(model.model)
 
-            payload = {
-                "model": model.model,
-                "input": model.question
-            }
-
-            response = requests.post(
-                XAI_URL,
-                headers=headers,
-                json=payload,
-                timeout=120
+            response = ai_model.generate_content(
+                model.question,
+                stream=True
             )
 
-            if response.status_code != 200:
-                yield f"ERROR: {response.text}"
-                return
+            for chunk in response:
 
-            data = response.json()
+                if hasattr(chunk, "text"):
 
-            # convert response to pretty text
-            text = json.dumps(data, indent=2)
-
-            # stream response
-            for char in text:
-                yield char
-                time.sleep(0.003)
+                    yield chunk.text
+                    time.sleep(0.01)
 
         except Exception as e:
 
