@@ -3,7 +3,6 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-
 import google.generativeai as genai
 from dotenv import load_dotenv
 
@@ -19,6 +18,9 @@ load_dotenv()
 # GEMINI CONFIG
 # =========================
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+if not GEMINI_API_KEY:
+    raise ValueError("GEMINI_API_KEY is missing")
 
 genai.configure(api_key=GEMINI_API_KEY)
 
@@ -63,7 +65,7 @@ def health():
     return {"message": "API healthy ✅"}
 
 # =========================
-# PREFLIGHT (CORS)
+# PREFLIGHT
 # =========================
 @app.options("/api/ask")
 def options_ask():
@@ -74,17 +76,15 @@ def options_stream():
     return Response(status_code=200)
 
 # =========================
-# NON-STREAM API
+# NORMAL RESPONSE API
 # =========================
 @app.post("/api/ask")
 def ask_question(model: Model):
 
     try:
 
-        # create model
         ai_model = genai.GenerativeModel(model.model)
 
-        # generate response
         response = ai_model.generate_content(
             model.question
         )
@@ -122,13 +122,11 @@ def stream_answer(model: Model):
 
             for chunk in response:
 
-                if hasattr(chunk, "text"):
-
+                if hasattr(chunk, "text") and chunk.text:
                     yield chunk.text
                     time.sleep(0.01)
 
         except Exception as e:
-
             yield f"ERROR: {str(e)}"
 
     return StreamingResponse(
@@ -137,14 +135,14 @@ def stream_answer(model: Model):
     )
 
 # =========================
-# RUN SERVER
+# LOCAL RUN
 # =========================
 if __name__ == "__main__":
 
     import uvicorn
 
     uvicorn.run(
-        "main:app",
+        "GenAPI:app",
         host="0.0.0.0",
         port=8000,
         reload=True
