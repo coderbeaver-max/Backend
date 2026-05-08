@@ -18,6 +18,7 @@ load_dotenv()
 # GEMINI CONFIG
 # =========================
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+print("KEY:", GEMINI_API_KEY[:10])
 
 if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY is missing")
