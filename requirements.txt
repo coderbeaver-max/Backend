@@ -1,5 +1,9 @@
+
 fastapi
 uvicorn
 requests
-google-generativeai
 python-dotenv
+google-genai
+langsmith
+psycopg2-binary
+pydantic
