@@ -6,19 +6,26 @@ from utils.validators import validate_request
 from Services.gemini_service import stream_gemini_response
 from Services.database_service import (
     create_conversation,
-    save_message
+    save_message,
+    get_recent_messages
 )
-
 
 router = APIRouter()
 
 
 @router.post("/api/stream")
-async def stream_gemini_response_route(model: Model):
+def stream_gemini_response_route(model: Model):
     validate_request(model)
 
-    conversation_id = create_conversation(
-        user_id=model.user_id
+    if model.conversation_id is None:
+        conversation_id = create_conversation(
+            user_id=model.user_id
+        )
+    else:
+        conversation_id = model.conversation_id
+
+    previous_messages = get_recent_messages(
+        conversation_id=conversation_id
     )
 
     save_message(
@@ -32,7 +39,8 @@ async def stream_gemini_response_route(model: Model):
 
         for chunk in stream_gemini_response(
             question=model.question,
-            model_name=model.model
+            model_name=model.model,
+            previous_messages=previous_messages
         ):
             full_response += chunk
             yield chunk
@@ -49,6 +57,4 @@ async def stream_gemini_response_route(model: Model):
         headers={
             "Cache-Control": "no-cache"
         }
-   )
-   
-   
+    )

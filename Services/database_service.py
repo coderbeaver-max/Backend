@@ -26,65 +26,33 @@ def get_connection():
 # =========================
 # GET OR CREATE USER DB ID
 # =========================
-def get_user_db_id(
-    user_id: str
-):
-
+def get_user_db_id(user_id: str):
     conn = get_connection()
-
     try:
-
         with conn.cursor() as cur:
-
             cur.execute(
                 """
-                INSERT INTO users (
-                    user_id
-                )
+                INSERT INTO users (user_id)
                 VALUES (%s)
-                ON CONFLICT (user_id)
-                DO NOTHING
+                ON CONFLICT (user_id) 
+                DO UPDATE SET user_id = EXCLUDED.user_id
                 RETURNING id
                 """,
                 (user_id,)
             )
-
+            
             result = cur.fetchone()
-
-            if result:
-
-                conn.commit()
-
-                return result[0]
-
-            cur.execute(
-                """
-                SELECT id
-                FROM users
-                WHERE user_id = %s
-                """,
-                (user_id,)
-            )
-
-            result = cur.fetchone()
-
+            
             if not result:
-                raise ValueError(
-                    "Unable to create or retrieve user"
-                )
-
+                raise ValueError("Unable to create or retrieve user")
+                
             conn.commit()
-
             return result[0]
-
+            
     except Exception:
-
         conn.rollback()
-
         raise
-
     finally:
-
         conn.close()
 
 
