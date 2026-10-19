@@ -17,14 +17,31 @@ client = TestClient(app)
 
 
 def test_ask_returns_generated_response(monkeypatch):
-    # Replace the external Gemini call with a predictable test result.
+    # Mock Gemini so the test does not call the real external API.
     def fake_gemini_response(question, model_name):
         return "Python is a programming language."
+
+    # Mock PostgreSQL-related operations so no database is required.
+    def fake_create_conversation(user_id):
+        return "ci-test-conversation"
+
+    def fake_save_message(*args, **kwargs):
+        return None
 
     monkeypatch.setattr(
         ask_route,
         "generate_gemini_response",
         fake_gemini_response,
+    )
+    monkeypatch.setattr(
+        ask_route,
+        "create_conversation",
+        fake_create_conversation,
+    )
+    monkeypatch.setattr(
+        ask_route,
+        "save_message",
+        fake_save_message,
     )
 
     payload = {
