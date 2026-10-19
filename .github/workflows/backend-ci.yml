@@ -1,4 +1,3 @@
-
 name: Backend CI
 
 on:
@@ -6,10 +5,12 @@ on:
     branches:
       - develop
       - main
+
   pull_request:
     branches:
       - develop
       - main
+
   workflow_dispatch:
 
 jobs:
@@ -36,3 +37,6 @@ jobs:
 
       - name: Check Python syntax
         run: python -m compileall -q .
+
+      - name: Run automated tests
+        run: pytest -q
