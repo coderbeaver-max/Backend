@@ -44,3 +44,33 @@ jobs:
         env:
           GEMINI_API_KEY: ci-test-key
         run: python -m pytest -q
+
+  terraform-validate:
+    name: Validate AWS Terraform Configuration
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: infrastructure/aws
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.16.6"
+          terraform_wrapper: false
+
+      - name: Check Terraform formatting
+        run: terraform fmt -check -recursive
+
+      - name: Initialize Terraform without a remote backend
+        run: terraform init -backend=false -input=false
+
+      - name: Validate Terraform configuration
+        run: terraform validate
+
+      - name: Check Terraform plan
+        run: terraform plan -input=false -lock=false
