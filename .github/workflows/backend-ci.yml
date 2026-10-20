@@ -35,6 +35,7 @@ jobs:
     env:
       GEMINI_API_KEY: ci-test-key
       DATABASE_URL: postgresql://postgres:ci-test-password@localhost:5432/jarvis_test
+      RUN_DATABASE_INTEGRATION_TESTS: "1"
 
     steps:
       - name: Checkout repository
