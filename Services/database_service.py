@@ -1,5 +1,6 @@
 
 import os
+
 import psycopg2
 
 from config.settings import (
@@ -11,16 +12,12 @@ from config.settings import (
 )
 
 
-# =========================
-# DB CONNECTION
-# =========================
 def get_connection():
     """
     Connect to PostgreSQL using either:
     1. DATABASE_URL (Railway or another hosted PostgreSQL provider)
     2. Individual DB_* settings (local development)
     """
-
     database_url = os.getenv("DATABASE_URL")
 
     if database_url:
@@ -42,9 +39,6 @@ def get_connection():
     )
 
 
-# =========================
-# GET OR CREATE USER DB ID
-# =========================
 def get_user_db_id(user_id: str):
     conn = get_connection()
 
@@ -79,9 +73,6 @@ def get_user_db_id(user_id: str):
         conn.close()
 
 
-# =========================
-# CREATE CONVERSATION
-# =========================
 def create_conversation(user_id: str):
     db_user_id = get_user_db_id(user_id)
     conn = get_connection()
@@ -105,8 +96,8 @@ def create_conversation(user_id: str):
                 )
 
             conversation_id = result[0]
-            conn.commit()
 
+            conn.commit()
             return conversation_id
 
     except Exception:
@@ -117,9 +108,6 @@ def create_conversation(user_id: str):
         conn.close()
 
 
-# =========================
-# SAVE MESSAGE
-# =========================
 def save_message(
     conversation_id: int,
     role: str,
@@ -138,11 +126,7 @@ def save_message(
                 )
                 VALUES (%s, %s, %s)
                 """,
-                (
-                    conversation_id,
-                    role,
-                    content,
-                ),
+                (conversation_id, role, content),
             )
 
             conn.commit()
@@ -155,9 +139,6 @@ def save_message(
         conn.close()
 
 
-# =========================
-# GET RECENT MESSAGES
-# =========================
 def get_recent_messages(
     conversation_id: int,
     limit: int = 10,
@@ -171,16 +152,16 @@ def get_recent_messages(
                 SELECT role, content
                 FROM messages
                 WHERE conversation_id = %s
-                ORDER BY created_at DESC
+                ORDER BY created_at DESC, id DESC
                 LIMIT %s
                 """,
-                (
-                    conversation_id,
-                    limit,
-                ),
+                (conversation_id, limit),
             )
 
             rows = cur.fetchall()
+
+            # The query fetches the newest messages first.
+            # Reverse them so the caller receives chronological history.
             rows.reverse()
 
             return rows
