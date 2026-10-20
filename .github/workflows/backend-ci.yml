@@ -45,6 +45,18 @@ jobs:
           GEMINI_API_KEY: ci-test-key
         run: python -m pytest -q
 
+  docker-build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: validate
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build --tag jarvis-backend:ci .
+
   terraform-validate:
     name: Validate AWS Terraform Configuration
     runs-on: ubuntu-latest
