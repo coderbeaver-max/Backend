@@ -1,5 +1,6 @@
 
 import os
+from typing import Literal
 
 import psycopg2
 
@@ -112,7 +113,6 @@ def create_conversation(user_id: str):
 
             conversation_id = result[0]
 
-        # Commit only after both user and conversation operations succeed.
         conn.commit()
         return conversation_id
 
@@ -180,6 +180,104 @@ def get_recent_messages(
             rows.reverse()
 
             return rows
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.close()
+
+
+def create_request_execution(conversation_id: int) -> int:
+    """
+    Create a pending execution record for one AI request.
+
+    Returns the new request execution ID.
+    """
+    conn = get_connection()
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO public.request_executions (
+                    conversation_id
+                )
+                VALUES (%s)
+                RETURNING id
+                """,
+                (conversation_id,),
+            )
+
+            result = cur.fetchone()
+
+            if not result:
+                raise ValueError(
+                    "Unable to create request execution"
+                )
+
+            execution_id = result[0]
+
+        conn.commit()
+        return execution_id
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.close()
+
+
+def finish_request_execution(
+    execution_id: int,
+    status: Literal["succeeded", "failed"],
+    error_message: str | None = None,
+):
+    """
+    Finish an execution that is currently pending.
+
+    Only succeeded and failed are valid completion statuses.
+    The database enforces the corresponding completed_at requirement.
+    """
+    if status not in ("succeeded", "failed"):
+        raise ValueError(
+            "Execution status must be 'succeeded' or 'failed'."
+        )
+
+    if status == "succeeded":
+        error_message = None
+    elif not error_message:
+        error_message = "Request failed; no error detail was recorded."
+
+    conn = get_connection()
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE public.request_executions
+                SET
+                    status = %s,
+                    error_message = %s,
+                    completed_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+                  AND status = 'pending'
+                RETURNING id
+                """,
+                (status, error_message, execution_id),
+            )
+
+            result = cur.fetchone()
+
+            if not result:
+                raise ValueError(
+                    "Request execution was not found or "
+                    "is no longer pending."
+                )
+
+        conn.commit()
 
     except Exception:
         conn.rollback()
